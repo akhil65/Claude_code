@@ -79,23 +79,15 @@ Before rendering, for each diagram:
 
 ## Step 4 — Render SVGs
 
-Check whether `mmdc` is available; install it if not:
+Run the render script from the repo root:
 
 ```bash
-npx mmdc --version 2>/dev/null || npm install -g @mermaid-js/mermaid-cli
+bash .claude/skills/architecture-report/render.sh
 ```
 
-Render all diagrams with the dark theme:
+The script checks for `npx`, renders every `.mmd` file in `docs/architecture/` to a dark-themed SVG at 1200px wide, validates each output is non-empty, and prints a rendered/failed summary. It exits with a non-zero code if any diagram fails.
 
-```bash
-cd docs/architecture
-npx mmdc -i frontend.mmd     -o frontend.svg     -t dark
-npx mmdc -i backend.mmd      -o backend.svg      -t dark
-npx mmdc -i dataflow.mmd     -o dataflow.svg     -t dark
-npx mmdc -i dependencies.mmd -o dependencies.svg -t dark
-```
-
-Confirm each SVG file exists and has a non-zero size before continuing. If any render fails, inspect the error, fix the `.mmd` source, and re-render.
+If a render fails, inspect the error printed to stderr, fix the `.mmd` source, and re-run the script.
 
 ## Step 5 — Write ARCHITECTURE.md
 
