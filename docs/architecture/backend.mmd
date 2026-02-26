@@ -1,0 +1,57 @@
+graph TD
+    subgraph Entry["Entry / Config"]
+        NitroConfig["nitro.config.ts\npreset: heroku · srcDir: server"]
+        Nitro["Nitro.js Runtime\nfile-system routing"]
+    end
+
+    subgraph Middleware["Middleware Layer"]
+        CORS["Route Rules CORS\n/api/** → wildcard headers"]
+        OptionsHandler["OPTIONS /api/[...]\nCORS preflight handler"]
+        AuthHOF["definePrivateEventHandler HOF\nparses Authorization: Token|Bearer\njwt.verify → injects auth.id into PrivateContext\nthrows 401/403 if requireAuth fails"]
+    end
+
+    subgraph Routing["Routes — server/routes/api/"]
+        AuthRoutes["Auth\nPOST /users — register\nPOST /users/login"]
+        UserRoutes["User\nGET /user · PUT /user"]
+        ProfileRoutes["Profiles\nGET /profiles/:username\nPOST|DELETE /profiles/:username/follow"]
+        ArticleRoutes["Articles\nGET|POST /articles\nGET /articles/feed\nGET|PUT|DELETE /articles/:slug\nPOST|DELETE /articles/:slug/favorite"]
+        CommentRoutes["Comments\nGET|POST /articles/:slug/comments\nDELETE /articles/:slug/comments/:id"]
+        TagRoutes["GET /tags"]
+        V2Routes["v2 Auth (experimental)\nPOST /v2/auth/signup · login · logout\nZod validation · httpOnly cookie"]
+    end
+
+    subgraph Services["Utilities — server/utils/"]
+        HashUtil["useHashPassword / useDecrypt\nbcryptjs · salt rounds: 10"]
+        TokenUtil["useGenerateToken\njsonwebtoken · 60d expiry"]
+        ArticleMapper["articleMapper\ncomputes favorited bool · favoritesCount\nformats tagList as string[]"]
+        ProfileMapper["authorMapper / profileMapper\ncomputes following bool\nfrom followedBy relation array"]
+    end
+
+    subgraph ORM["ORM — Prisma 6"]
+        PrismaClient["usePrisma()\nPrismaClient singleton"]
+        UserModel["User\nid · email · username · password\nbio · image · demo"]
+        ArticleModel["Article\nid · slug · title · description · body\nauthorId"]
+        CommentModel["Comment\nid · body · articleId · authorId"]
+        TagModel["Tag\nid · name (unique)"]
+    end
+
+    subgraph Infra["Infrastructure"]
+        SQLite["SQLite\napps/api/prisma/dev.db"]
+        JWTEnv["JWT_SECRET\nenv variable"]
+    end
+
+    NitroConfig --> Nitro
+    Nitro --> CORS
+    Nitro --> OptionsHandler
+    CORS --> AuthHOF
+    AuthHOF --> AuthRoutes & UserRoutes & ProfileRoutes & ArticleRoutes & CommentRoutes & TagRoutes & V2Routes
+    AuthRoutes --> HashUtil & TokenUtil
+    UserRoutes --> TokenUtil
+    V2Routes --> HashUtil & TokenUtil
+    ArticleRoutes --> ArticleMapper
+    ProfileRoutes & ArticleRoutes --> ProfileMapper
+    ArticleMapper --> ProfileMapper
+    AuthRoutes & UserRoutes & ProfileRoutes & ArticleRoutes & CommentRoutes & TagRoutes & V2Routes --> PrismaClient
+    PrismaClient --> UserModel & ArticleModel & CommentModel & TagModel
+    UserModel & ArticleModel & CommentModel & TagModel --> SQLite
+    AuthHOF & TokenUtil --> JWTEnv

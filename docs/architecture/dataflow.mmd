@@ -1,0 +1,54 @@
+sequenceDiagram
+    participant Client as Frontend Client
+    participant Nitro as Nitro.js Server<br/>(CORS + routing)
+    participant Handler as login.post.ts<br/>route handler
+    participant Prisma as Prisma ORM<br/>usePrisma()
+    participant DB as SQLite<br/>dev.db
+    participant Bcrypt as bcryptjs
+    participant JWT as jsonwebtoken<br/>useGenerateToken()
+
+    Client->>Nitro: POST /api/users/login<br/>{ user: { email, password } }
+
+    Note over Nitro: Applies CORS headers<br/>access-control-allow-methods: *
+
+    Nitro->>Handler: defineEventHandler fires<br/>routes to login.post.ts
+
+    Handler->>Handler: readBody(event)<br/>extract user.email · user.password<br/>trim whitespace
+
+    alt missing email or password
+        Handler-->>Client: 422 Unprocessable Entity<br/>{ errors: { email|password: ["can't be blank"] } }
+    end
+
+    Handler->>Prisma: user.findUnique({<br/>  where: { email },<br/>  select: { id, email, username,<br/>            password, bio, image }<br/>})
+
+    Prisma->>DB: SELECT id, email, username, password,<br/>bio, image FROM User<br/>WHERE email = ? LIMIT 1
+
+    DB-->>Prisma: row | null
+
+    Prisma-->>Handler: foundUser | null
+
+    alt user not found
+        Handler-->>Client: 403 Forbidden<br/>{ errors: { "email or password": ["is invalid"] } }
+    end
+
+    Handler->>Bcrypt: bcrypt.compare(<br/>  plaintext password,<br/>  foundUser.password hash<br/>)
+
+    Note over Bcrypt: runs ~10 salt rounds<br/>of hashing to compare
+
+    Bcrypt-->>Handler: match: true | false
+
+    alt password does not match
+        Handler-->>Client: 403 Forbidden<br/>{ errors: { "email or password": ["is invalid"] } }
+    end
+
+    Handler->>JWT: jwt.sign(<br/>  { user: { id: foundUser.id } },<br/>  JWT_SECRET,<br/>  { expiresIn: "60d" }<br/>)
+
+    JWT-->>Handler: signed JWT string
+
+    Handler-->>Nitro: { user: { email, username,<br/>  bio, image, token } }
+
+    Note over Nitro: password field never<br/>included — omitted by Prisma select
+
+    Nitro-->>Client: 200 OK<br/>{ user: { email, username, bio, image, token } }
+
+    Note over Client: stores token<br/>sends as Authorization: Token jwt<br/>on subsequent requests

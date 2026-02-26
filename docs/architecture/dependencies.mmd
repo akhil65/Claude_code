@@ -1,0 +1,69 @@
+graph LR
+    subgraph Consumers["External Consumers"]
+        BrowserApps["Browser / Mobile\nFrontend Apps\n(any RealWorld implementation)"]
+        DemoApp["demo.realworld.show\nAngular reference frontend"]
+        E2ERunner["Playwright E2E\nspecs/e2e/"]
+        APITestTools["API Test Collections\nHurl · Bruno · Postman\nspecs/api/"]
+    end
+
+    subgraph Application["Application — monorepo root"]
+        subgraph API["Nitro.js API  ·  apps/api/"]
+            NitroServer["Nitro.js Runtime\nfile-system routing\nCORS wildcard on /api/**"]
+            AuthLayer["definePrivateEventHandler\nJWT auth HOF"]
+            Routes["Route Handlers\nusers · articles\nprofiles · comments · tags"]
+            Mappers["Response Mappers\narticleMapper · profileMapper\nauthorMapper"]
+        end
+        subgraph Docs["Astro Docs  ·  apps/documentation/"]
+            AstroBuild["Astro 5 + Starlight\nStatic Site Generator\n23 routes"]
+        end
+    end
+
+    subgraph RuntimeDeps["Runtime Libraries"]
+        Bcrypt["bcryptjs\npassword hashing\nsalt rounds: 10"]
+        JWTLib["jsonwebtoken\nJWT sign + verify\n60d expiry"]
+        PrismaClient["Prisma Client v6\nORM + query builder"]
+        Slugify["slugify\nslug = title + userId"]
+    end
+
+    subgraph DataLayer["Data Storage"]
+        SQLite[("SQLite\napps/api/prisma/dev.db\nembedded · single file\nno network connection")]
+    end
+
+    subgraph EnvConfig["Environment Config"]
+        JWTSecret[["JWT_SECRET\nenv variable\nonly external secret"]]
+    end
+
+    subgraph Hosting["Hosting"]
+        Heroku["Heroku\nAPI server\napi.realworld.show"]
+        GHPages["GitHub Pages\nDocs site\ndocs.realworld.show"]
+    end
+
+    subgraph CICD["CI/CD  —  GitHub Actions"]
+        DeployDocs["deploy-docs.yml\npush to main → Bun build\n→ GitHub Pages deploy"]
+        BrunoCheck["bruno-check.yml\nevery push + PR\n→ make bruno-check"]
+        CodeQL["codeql.yml\nstatic security analysis"]
+        Dependabot["Dependabot\nweekly PRs\nnpm + GitHub Actions"]
+    end
+
+    BrowserApps -->|"HTTP JSON\nAuthorization: Token jwt"| NitroServer
+    DemoApp -->|"HTTP JSON"| NitroServer
+    E2ERunner -->|"HTTP JSON"| NitroServer
+    APITestTools -->|"HTTP JSON"| NitroServer
+    NitroServer --> AuthLayer
+    AuthLayer --> Routes
+    Routes --> Mappers
+    Routes --> PrismaClient
+    Routes --> Bcrypt
+    Routes --> JWTLib
+    Routes --> Slugify
+    AuthLayer -->|"jwt.verify"| JWTSecret
+    JWTLib -->|"jwt.sign"| JWTSecret
+    PrismaClient --> SQLite
+    DocReaders["Docs Readers"] -->|"HTTPS"| GHPages
+    GHPages -.->|"serves"| AstroBuild
+    NitroServer -.->|"deployed to"| Heroku
+    AstroBuild -.->|"deployed to"| GHPages
+    DeployDocs -.->|"builds + deploys"| GHPages
+    BrunoCheck -.->|"validates"| APITestTools
+    CodeQL -.->|"scans"| Application
+    Dependabot -.->|"update PRs"| Application

@@ -1,0 +1,62 @@
+graph TD
+    subgraph Config["Configuration"]
+        AstroConfig["astro.config.mjs\nSidebar structure · integrations · Vite plugins"]
+    end
+
+    subgraph Build["Build Pipeline"]
+        Astro["Astro 5\nSSG Framework"]
+        Vite["Vite 5"]
+        RMD["removeMdExtension\nVite Plugin — strips .md from internal links"]
+    end
+
+    subgraph Content["Content Layer — src/content/docs/"]
+        HomePage["/ — index.mdx\nsplash template"]
+        ImplGroup["Implementation Creation\nintroduction · features · expectations"]
+        FESpec["Frontend Specifications\ntemplates · styles · routing · api · tests"]
+        BESpec["Backend Specifications\nintroduction · endpoints · response-format\ncors · error-handling · hurl · tests"]
+        MobileSpec["Mobile Specifications\nintroduction"]
+        Community["Community\nauthors · resources · special-thanks"]
+    end
+
+    subgraph StarlightFW["@astrojs/starlight — Doc Framework"]
+        SplashTpl["Splash Template\nhero landing page"]
+        DocsTpl["Docs Template\nsidebar + TOC + content"]
+
+        subgraph SharedLayout["Shared Layout Components"]
+            Header["Header\nRealWorld title · GitHub link"]
+            Sidebar["Sidebar\n3 top-level sections — explicit nav config"]
+            TOC["Table of Contents\nauto-generated from headings"]
+            ContentArea["Markdown Content Area\nMDX rendered to HTML"]
+        end
+    end
+
+    subgraph Styling["Styling Pipeline"]
+        TailwindV4["Tailwind CSS v4\n@tailwindcss/vite plugin"]
+        SlTailwind["@astrojs/starlight-tailwind\ntheme bridge"]
+        CSSVars["CSS Custom Properties\n--color-accent purple/violet\n--color-gray warm lavender"]
+    end
+
+    subgraph Output["Output"]
+        StaticSite["Static HTML / CSS / JS\n23 routes → docs.realworld.show"]
+    end
+
+    AstroConfig --> Astro
+    Astro --> Vite
+    Vite --> RMD
+    Astro --> StarlightFW
+    Content --> StarlightFW
+    HomePage --> SplashTpl
+    ImplGroup --> DocsTpl
+    FESpec --> DocsTpl
+    BESpec --> DocsTpl
+    MobileSpec --> DocsTpl
+    Community --> DocsTpl
+    SplashTpl --> Header
+    DocsTpl --> Header
+    DocsTpl --> Sidebar
+    DocsTpl --> TOC
+    DocsTpl --> ContentArea
+    TailwindV4 --> SlTailwind
+    SlTailwind --> CSSVars
+    CSSVars --> StarlightFW
+    Astro --> StaticSite
